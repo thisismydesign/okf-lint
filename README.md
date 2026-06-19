@@ -1,19 +1,19 @@
 # okf-lint
 
-An **opinionated linter for the [Open Knowledge Format (OKF)][okf]** — Google's
-open, human- and agent-friendly format for knowledge catalogs.
+A linter for the [Open Knowledge Format (OKF)][okf] — Google's open, human- and
+agent-friendly format for knowledge catalogs.
 
 Think of it as ESLint or RuboCop, but for OKF bundles. `okf-lint`:
 
 - Reports **errors** when a bundle violates a **mandatory** OKF conformance
   requirement (e.g. a concept document is missing its `type` field).
 - Reports **warnings** when a bundle skips an **optional-but-useful** convention
-  that this linter has an opinion about (e.g. no `index.md`, no `log.md`, or a
-  concept document without a `description`).
+  (e.g. no `index.md`, no `log.md`, or a concept document without a
+  `description`).
 
-It is built to support **multiple OKF versions**. The format is young — `0.1` is
-the only released version — so that is what ships today, but the version is
-selected per-bundle and new versions can be added without breaking old ones.
+The OKF version is selected per bundle. Supported versions: **`0.1`**. If a
+bundle does not specify a version, or specifies one the linter does not support,
+the highest supported version is used.
 
 > Specification: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>
 
@@ -148,8 +148,6 @@ agents, so `okf-lint` nudges you toward them. Disable any you disagree with.
 | ------------------------- | ------------------------------------------------------------------------------------------ |
 | `recommended-title`       | A human-readable display name makes listings and search legible.                           |
 | `recommended-description` | A one-line summary is what most consumers show first.                                      |
-| `recommended-resource`    | A canonical URI ties the concept to the asset it actually describes.                       |
-| `recommended-tags`        | Cross-cutting tags enable discovery beyond the directory hierarchy.                        |
 | `recommended-timestamp`   | A last-modified time lets consumers reason about freshness.                                |
 | `tags-type`               | When present, `tags` should be a list of strings (not a bare scalar).                      |
 | `timestamp-format`        | When present, `timestamp` should be a valid ISO 8601 datetime.                             |
@@ -157,9 +155,14 @@ agents, so `okf-lint` nudges you toward them. Disable any you disagree with.
 | `recommended-log`         | A `log.md` records how the catalog evolved — invaluable for consumers tracking changes.    |
 | `log-date-order`          | Log entries read best newest-first.                                                        |
 | `valid-links`             | Internal `.md` cross-links should resolve. (The spec permits broken links; we flag them.)  |
+| `prefer-absolute-links`   | Bundle-absolute links (`/path/to/doc.md`) are more robust than relative ones.              |
 | `okf-version-declared`    | Declaring `okf_version` lets tools pick the right rules. (See [Versioning](#versioning).)  |
 | `okf-version-supported`   | Warns when the declared version is newer/unknown to this linter.                           |
 | `okf-version-format`      | `okf_version` should be a quoted string so e.g. `"0.10"` isn't parsed as the number `0.1`. |
+
+`resource` and `tags` are intentionally **not** required or recommended: many
+concepts have no underlying asset, and tags don't always make sense. When you do
+provide `tags`, `tags-type` checks that it's well-formed.
 
 Run `okf-lint --list-rules` to print the full, current list.
 
@@ -201,7 +204,7 @@ Drop a `.okflintrc.json` in your bundle root (or the directory you run
 ```json
 {
   "rules": {
-    "recommended-tags": "off",
+    "recommended-timestamp": "off",
     "valid-links": "error",
     "okf-version-declared": "off"
   }
@@ -223,7 +226,7 @@ The [`examples/`](./examples) directory contains two runnable bundles:
 
 ```bash
 okf-lint examples/valid     # ✓ No problems found.
-okf-lint examples/invalid   # ✖ 11 problems (4 errors, 7 warnings)
+okf-lint examples/invalid   # ✖ 10 problems (4 errors, 6 warnings)
 ```
 
 ## Development

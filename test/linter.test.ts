@@ -48,7 +48,7 @@ describe('invalid example bundle', () => {
   it('reports the expected errors and warnings', () => {
     const result = lint(example('invalid'));
     expect(result.errorCount).toBe(4);
-    expect(result.warningCount).toBe(7);
+    expect(result.warningCount).toBe(6);
 
     const ids = ruleIds(result.diagnostics);
     expect(ids).toContain('frontmatter-present');
@@ -58,7 +58,12 @@ describe('invalid example bundle', () => {
     expect(ids).toContain('tags-type');
     expect(ids).toContain('timestamp-format');
     expect(ids).toContain('valid-links');
+    expect(ids).toContain('prefer-absolute-links');
     expect(ids).toContain('recommended-description');
+
+    // resource and tags are situational, so they are not recommended.
+    expect(ids).not.toContain('recommended-resource');
+    expect(ids).not.toContain('recommended-tags');
   });
 });
 

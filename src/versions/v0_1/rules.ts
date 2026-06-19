@@ -10,7 +10,7 @@ import {
   isIsoDate,
 } from '../../text-utils.js';
 
-const RECOMMENDED_FIELDS = ['title', 'description', 'resource', 'tags', 'timestamp'] as const;
+const RECOMMENDED_FIELDS = ['title', 'description', 'timestamp'] as const;
 
 /** True for values that count as "missing" for a recommended field. */
 function isEmptyValue(value: unknown): boolean {
@@ -102,8 +102,6 @@ const typeRequired: Rule = {
 const RECOMMENDED_LABELS: Record<(typeof RECOMMENDED_FIELDS)[number], string> = {
   title: 'a human-readable display name',
   description: 'a one-line summary',
-  resource: 'a canonical URI for the underlying asset',
-  tags: 'cross-cutting categorization',
   timestamp: 'an ISO 8601 last-modified time',
 };
 
@@ -384,6 +382,33 @@ const validLinks: Rule = {
   },
 };
 
+const preferAbsoluteLinks: Rule = {
+  meta: {
+    id: 'prefer-absolute-links',
+    severity: 'warning',
+    category: 'links',
+    description:
+      'Internal cross-links should use bundle-absolute paths (`/...`), not relative paths.',
+  },
+  run(ctx) {
+    for (const file of ctx.bundle.files) {
+      const fm = ctx.parsed.get(file.absPath)!;
+      const lines = file.content.split(/\r?\n/);
+      const body = lines.slice(fm.bodyStartLine - 1).join('\n');
+      for (const link of extractLinks(body, fm.bodyStartLine)) {
+        if (!isInternalLink(link.target)) continue;
+        if (link.target.startsWith('/')) continue;
+        ctx.report({
+          filePath: file.absPath,
+          line: link.line,
+          column: link.column,
+          message: `Prefer a bundle-absolute link (e.g. \`/path/to/doc.md\`) over the relative link \`${link.target}\`.`,
+        });
+      }
+    }
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Version rules
 // ---------------------------------------------------------------------------
@@ -465,6 +490,7 @@ export const rules: Rule[] = [
   logDateFormat,
   logDateOrder,
   validLinks,
+  preferAbsoluteLinks,
   okfVersionDeclared,
   okfVersionSupported,
   okfVersionFormat,
