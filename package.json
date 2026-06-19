@@ -1,0 +1,72 @@
+{
+  "name": "@thisismydesign/okf-lint",
+  "version": "0.1.0",
+  "description": "An opinionated linter for Google's Open Knowledge Format (OKF) knowledge catalogs — errors for spec violations, warnings for missing-but-useful conventions.",
+  "keywords": [
+    "okf",
+    "open-knowledge-format",
+    "knowledge-catalog",
+    "linter",
+    "lint",
+    "validator",
+    "markdown",
+    "frontmatter"
+  ],
+  "homepage": "https://github.com/thisismydesign/okf-lint#readme",
+  "bugs": {
+    "url": "https://github.com/thisismydesign/okf-lint/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thisismydesign/okf-lint.git"
+  },
+  "license": "MIT",
+  "author": "Csaba Apagyi",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "okf-lint": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "okf-lint": "node ./dist/cli.js",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.10.0",
+    "@types/node": "^22.5.0",
+    "eslint": "^9.10.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.5.0",
+    "vitest": "^2.0.5"
+  }
+}
