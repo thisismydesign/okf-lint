@@ -257,4 +257,4 @@ changes touch only one file.
 
 [MIT](./LICENSE)
 
-[okf]: https://github.com/GoogleCloudPlatform/knowledge-catalog
+[okf]: https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing/
