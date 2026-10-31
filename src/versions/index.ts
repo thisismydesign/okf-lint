@@ -2,13 +2,15 @@ import type { Bundle, ResolvedVersion } from '../types.js';
 import type { Rule } from '../rule.js';
 import type { ParsedFrontmatter } from '../frontmatter.js';
 import { rules as v0_1Rules } from './v0_1/rules.js';
+import { rules as v0_2Rules } from './v0_2/rules.js';
 
 /** The most recent OKF version this linter implements. */
-export const LATEST_VERSION = '0.1';
+export const LATEST_VERSION = '0.2';
 
 /** Registry of supported OKF versions and their rule sets. */
 const RULE_SETS: Record<string, Rule[]> = {
   '0.1': v0_1Rules,
+  '0.2': v0_2Rules,
 };
 
 /** List of OKF versions this linter supports, ascending. */

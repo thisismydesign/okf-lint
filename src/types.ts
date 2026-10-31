@@ -47,6 +47,12 @@ export interface Bundle {
   root: string;
   /** All markdown files in the bundle. */
   files: OkfFile[];
+  /**
+   * Absolute paths of every file in the bundle tree, markdown or not. Used to
+   * resolve path-valued frontmatter fields (e.g. `computation`, `attester.resource`)
+   * that may point at non-markdown artifacts.
+   */
+  paths: string[];
 }
 
 /** Result of resolving which OKF version to validate against. */

@@ -13,6 +13,7 @@ export {
   resolveVersion,
 } from './versions/index.js';
 export { rules as v0_1Rules } from './versions/v0_1/rules.js';
+export { rules as v0_2Rules } from './versions/v0_2/rules.js';
 
 export type {
   Severity,
@@ -24,4 +25,4 @@ export type {
   OkfLintConfig,
   LintResult,
 } from './types.js';
-export type { Rule, RuleMeta, RuleContext, ReportInput } from './rule.js';
+export type { Rule, RuleMeta, RuleContext, ReportInput, ConceptFrontmatter } from './rule.js';

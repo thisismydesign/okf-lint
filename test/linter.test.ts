@@ -1,36 +1,24 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { fileURLToPath } from 'node:url';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { lint } from '../src/index.js';
+import { describe, it, expect } from 'vitest';
+import { lint, SUPPORTED_VERSIONS, LATEST_VERSION, getRuleSet } from '../src/index.js';
+import { example, ruleIds, makeBundle } from './helpers.js';
 
-const example = (name: string): string =>
-  fileURLToPath(new URL(`../examples/${name}`, import.meta.url));
+describe('supported versions', () => {
+  it('supports 0.1 and 0.2, with 0.2 as latest', () => {
+    expect(SUPPORTED_VERSIONS).toEqual(['0.1', '0.2']);
+    expect(LATEST_VERSION).toBe('0.2');
+  });
 
-function ruleIds(diagnostics: { ruleId: string }[]): Set<string> {
-  return new Set(diagnostics.map((d) => d.ruleId));
-}
-
-const tempDirs: string[] = [];
-function makeBundle(files: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), 'okf-lint-'));
-  tempDirs.push(dir);
-  for (const [rel, content] of Object.entries(files)) {
-    const full = join(dir, rel);
-    mkdirSync(join(full, '..'), { recursive: true });
-    writeFileSync(full, content);
-  }
-  return dir;
-}
-
-afterEach(() => {
-  while (tempDirs.length) rmSync(tempDirs.pop()!, { recursive: true, force: true });
+  it('has unique rule ids within every rule set', () => {
+    for (const version of SUPPORTED_VERSIONS) {
+      const ids = getRuleSet(version).map((r) => r.meta.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
 });
 
-describe('valid example bundle', () => {
-  it('produces no diagnostics', () => {
-    const result = lint(example('valid'));
+describe('v0.1 example bundles', () => {
+  it('valid bundle produces no diagnostics', () => {
+    const result = lint(example('v0.1/valid'));
     expect(result.diagnostics).toEqual([]);
     expect(result.errorCount).toBe(0);
     expect(result.warningCount).toBe(0);
@@ -39,14 +27,12 @@ describe('valid example bundle', () => {
 
   it('resolves cross-links correctly for a relative bundle path', () => {
     // Regression: a relative root must still resolve internal links cleanly.
-    const result = lint('examples/valid');
+    const result = lint('examples/v0.1/valid');
     expect(result.diagnostics).toEqual([]);
   });
-});
 
-describe('invalid example bundle', () => {
-  it('reports the expected errors and warnings', () => {
-    const result = lint(example('invalid'));
+  it('invalid bundle reports the expected errors and warnings', () => {
+    const result = lint(example('v0.1/invalid'));
     expect(result.errorCount).toBe(4);
     expect(result.warningCount).toBe(6);
 
@@ -65,47 +51,116 @@ describe('invalid example bundle', () => {
     expect(ids).not.toContain('recommended-resource');
     expect(ids).not.toContain('recommended-tags');
   });
+
+  it('does not apply v0.2 rules to a v0.1 bundle', () => {
+    const dir = makeBundle({
+      'index.md': '---\nokf_version: "0.1"\n---\n',
+      'log.md': '# Log\n',
+      'a.md':
+        '---\ntype: Metric\ntitle: A\ndescription: d\ntimestamp: 2026-01-01T00:00:00Z\nstatus: bogus\n---\n\n# Citations\n\n- x\n',
+    });
+    const result = lint(dir);
+    expect(result.version.resolved).toBe('0.1');
+    expect(result.diagnostics).toEqual([]);
+  });
+});
+
+describe('v0.2 example bundles', () => {
+  it('valid bundle produces no diagnostics', () => {
+    const result = lint(example('v0.2/valid'));
+    expect(result.diagnostics).toEqual([]);
+    expect(result.version).toMatchObject({ resolved: '0.2', supported: true, declared: true });
+  });
+
+  it('invalid bundle reports a representative spread of 0.2 problems', () => {
+    const result = lint(example('v0.2/invalid'));
+    expect(result.errorCount).toBe(1);
+    expect(result.warningCount).toBe(26);
+
+    const ids = ruleIds(result.diagnostics);
+    expect(ids).toContain('type-required');
+    // provenance
+    expect(ids).toContain('sources-resource');
+    expect(ids).toContain('sources-id-unique');
+    expect(ids).toContain('sources-signals');
+    expect(ids).toContain('usage-window-shape');
+    expect(ids).toContain('usage-count-window');
+    expect(ids).toContain('footnote-source-id');
+    // trust
+    expect(ids).toContain('recommended-generated');
+    expect(ids).toContain('verified-shape');
+    expect(ids).toContain('actor-format');
+    // lifecycle
+    expect(ids).toContain('status-value');
+    expect(ids).toContain('stale-after-format');
+    expect(ids).toContain('stale-after-passed');
+    // computation
+    expect(ids).toContain('computation-runtime');
+    expect(ids).toContain('computation-parameters');
+    expect(ids).toContain('computation-body');
+    expect(ids).toContain('computation-executor');
+    expect(ids).toContain('computation-attester');
+    expect(ids).toContain('computation-paths');
+    // migration
+    expect(ids).toContain('legacy-timestamp');
+    expect(ids).toContain('legacy-citations');
+    // superseded in 0.2
+    expect(ids).not.toContain('recommended-timestamp');
+  });
 });
 
 describe('version resolution', () => {
-  it('warns and falls back to latest when no version is declared', () => {
+  it('warns and falls back to latest (0.2) when no version is declared', () => {
     const dir = makeBundle({
       'concepts/a.md':
-        '---\ntype: Table\ntitle: A\ndescription: d\nresource: r\ntags: [t]\ntimestamp: 2026-01-01\n---\n',
+        '---\ntype: Table\ntitle: A\ndescription: d\nresource: r\ntags: [t]\ngenerated: { by: human:x, at: 2026-01-01T00:00:00Z }\n---\n',
     });
     const result = lint(dir);
-    expect(result.version).toMatchObject({ declared: false, resolved: '0.1' });
+    expect(result.version).toMatchObject({ declared: false, resolved: '0.2' });
     expect(ruleIds(result.diagnostics)).toContain('okf-version-declared');
+  });
+
+  it('validates against 0.1 when "0.1" is declared', () => {
+    const dir = makeBundle({ 'index.md': '---\nokf_version: "0.1"\n---\n\n# Items\n' });
+    const result = lint(dir);
+    expect(result.version).toMatchObject({ declared: true, supported: true, resolved: '0.1' });
+  });
+
+  it('validates against 0.2 when "0.2" is declared', () => {
+    const dir = makeBundle({ 'index.md': '---\nokf_version: "0.2"\n---\n\n# Items\n' });
+    const result = lint(dir);
+    expect(result.version).toMatchObject({ declared: true, supported: true, resolved: '0.2' });
+    expect(ruleIds(result.diagnostics)).not.toContain('okf-version-supported');
   });
 
   it('warns and falls back when the declared version is unsupported', () => {
     const dir = makeBundle({
-      'index.md': '---\nokf_version: "0.2"\n---\n\n# Items\n',
+      'index.md': '---\nokf_version: "0.3"\n---\n\n# Items\n',
     });
     const result = lint(dir);
     expect(result.version).toMatchObject({
       declared: true,
       supported: false,
-      requested: '0.2',
-      resolved: '0.1',
+      requested: '0.3',
+      resolved: '0.2',
     });
     expect(ruleIds(result.diagnostics)).toContain('okf-version-supported');
   });
 
   it('flags an unquoted (numeric) okf_version', () => {
-    const dir = makeBundle({ 'index.md': '---\nokf_version: 0.1\n---\n\n# Items\n' });
+    const dir = makeBundle({ 'index.md': '---\nokf_version: 0.2\n---\n\n# Items\n' });
     const result = lint(dir);
-    expect(result.version).toMatchObject({ supported: true, resolved: '0.1' });
+    expect(result.version).toMatchObject({ supported: true, resolved: '0.2' });
     expect(ruleIds(result.diagnostics)).toContain('okf-version-format');
   });
 });
 
 describe('configuration', () => {
   it('disables a rule via config', () => {
-    const withWarning = lint(example('invalid'));
+    const withWarning = lint(example('v0.1/invalid'));
     expect(ruleIds(withWarning.diagnostics)).toContain('recommended-description');
 
-    const disabled = lint(example('invalid'), {
+    const disabled = lint(example('v0.1/invalid'), {
       config: { rules: { 'recommended-description': 'off' } },
     });
     expect(ruleIds(disabled.diagnostics)).not.toContain('recommended-description');
@@ -113,10 +168,20 @@ describe('configuration', () => {
   });
 
   it('escalates a warning to an error via config', () => {
-    const result = lint(example('invalid'), {
+    const result = lint(example('v0.1/invalid'), {
       config: { rules: { 'tags-type': 'error' } },
     });
     const tagsDiag = result.diagnostics.find((d) => d.ruleId === 'tags-type');
     expect(tagsDiag?.severity).toBe('error');
+  });
+
+  it('escalates a 0.2 rule to an error via config', () => {
+    const result = lint(example('v0.2/invalid'), {
+      config: { rules: { 'computation-runtime': 'error' } },
+    });
+    expect(result.diagnostics.find((d) => d.ruleId === 'computation-runtime')?.severity).toBe(
+      'error',
+    );
+    expect(result.errorCount).toBe(2);
   });
 });

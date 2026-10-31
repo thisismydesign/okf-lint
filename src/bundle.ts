@@ -18,7 +18,9 @@ export function loadBundle(target: string): Bundle {
   const root = stats.isDirectory() ? absTarget : dirname(absTarget);
 
   const files: OkfFile[] = [];
+  const paths: string[] = [];
   for (const absPath of walk(root)) {
+    paths.push(absPath);
     if (!absPath.toLowerCase().endsWith('.md')) continue;
     const relPath = relative(root, absPath).split(sep).join('/');
     const name = basename(absPath).toLowerCase();
@@ -34,7 +36,8 @@ export function loadBundle(target: string): Bundle {
   }
 
   files.sort((a, b) => a.relPath.localeCompare(b.relPath));
-  return { root, files };
+  paths.sort();
+  return { root, files, paths };
 }
 
 function* walk(dir: string): Generator<string> {

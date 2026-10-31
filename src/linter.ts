@@ -12,6 +12,8 @@ export interface LintOptions {
   config?: OkfLintConfig;
   /** Working directory used to discover `.okflintrc.json`. Defaults to `process.cwd()`. */
   cwd?: string;
+  /** The instant time-sensitive rules (e.g. `stale_after`) compare against. Defaults to now. */
+  now?: Date;
 }
 
 /** Lint the OKF bundle at `target` (a bundle directory, or a file within one). */
@@ -31,6 +33,7 @@ export function lintBundle(bundle: Bundle, options: LintOptions = {}): LintResul
   const config = options.config ?? loadConfig(bundle.root, options.cwd);
 
   const fileSet = new Set(bundle.files.map((f) => f.absPath));
+  const pathSet = new Set(bundle.paths);
   const conceptFiles = bundle.files.filter((f) => !f.reserved);
   const indexFiles = bundle.files.filter((f) => f.reservedKind === 'index');
   const rootIndex = bundle.files.find((f) => f.isBundleRootIndex);
@@ -40,6 +43,8 @@ export function lintBundle(bundle: Bundle, options: LintOptions = {}): LintResul
     bundle,
     parsed,
     fileSet,
+    pathSet,
+    now: options.now ?? new Date(),
     version,
     conceptFiles,
     rootIndex,

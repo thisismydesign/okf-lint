@@ -1,6 +1,6 @@
 import { resolve, dirname, join } from 'node:path';
 import type { Rule, RuleContext } from '../../rule.js';
-import { nonEmptyString } from '../../rule.js';
+import { nonEmptyString, isEmptyValue } from '../../rule.js';
 import { frontmatterKeyLine } from '../../frontmatter.js';
 import {
   extractLinks,
@@ -10,21 +10,13 @@ import {
   isIsoDate,
 } from '../../text-utils.js';
 
-const RECOMMENDED_FIELDS = ['title', 'description', 'timestamp'] as const;
-
-/** True for values that count as "missing" for a recommended field. */
-function isEmptyValue(value: unknown): boolean {
-  if (value === undefined || value === null) return true;
-  if (typeof value === 'string') return value.trim().length === 0;
-  if (Array.isArray(value)) return value.length === 0;
-  return false;
-}
+type RecommendedField = 'title' | 'description' | 'timestamp';
 
 // ---------------------------------------------------------------------------
 // Frontmatter rules (mandatory)
 // ---------------------------------------------------------------------------
 
-const frontmatterPresent: Rule = {
+export const frontmatterPresent: Rule = {
   meta: {
     id: 'frontmatter-present',
     severity: 'error',
@@ -47,7 +39,7 @@ const frontmatterPresent: Rule = {
   },
 };
 
-const frontmatterParseable: Rule = {
+export const frontmatterParseable: Rule = {
   meta: {
     id: 'frontmatter-parseable',
     severity: 'error',
@@ -69,7 +61,7 @@ const frontmatterParseable: Rule = {
   },
 };
 
-const typeRequired: Rule = {
+export const typeRequired: Rule = {
   meta: {
     id: 'type-required',
     severity: 'error',
@@ -99,36 +91,42 @@ const typeRequired: Rule = {
 // Frontmatter rules (recommended — opinionated warnings)
 // ---------------------------------------------------------------------------
 
-const RECOMMENDED_LABELS: Record<(typeof RECOMMENDED_FIELDS)[number], string> = {
+const RECOMMENDED_LABELS: Record<RecommendedField, string> = {
   title: 'a human-readable display name',
   description: 'a one-line summary',
   timestamp: 'an ISO 8601 last-modified time',
 };
 
-const recommendedFieldRules: Rule[] = RECOMMENDED_FIELDS.map((field) => ({
-  meta: {
-    id: `recommended-${field}`,
-    severity: 'warning' as const,
-    category: 'frontmatter' as const,
-    description: `Concept documents should include a \`${field}\` field.`,
-  },
-  run(ctx: RuleContext) {
-    for (const file of ctx.conceptFiles) {
-      const fm = ctx.parsed.get(file.absPath)!;
-      if (!fm.present || !fm.data) continue;
-      if (isEmptyValue(fm.data[field])) {
-        ctx.report({
-          filePath: file.absPath,
-          line: fm.startLine || 1,
-          column: 1,
-          message: `Missing recommended \`${field}\` field (${RECOMMENDED_LABELS[field]}).`,
-        });
+function recommendedFieldRule(field: RecommendedField): Rule {
+  return {
+    meta: {
+      id: `recommended-${field}`,
+      severity: 'warning',
+      category: 'frontmatter',
+      description: `Concept documents should include a \`${field}\` field.`,
+    },
+    run(ctx: RuleContext) {
+      for (const file of ctx.conceptFiles) {
+        const fm = ctx.parsed.get(file.absPath)!;
+        if (!fm.present || !fm.data) continue;
+        if (isEmptyValue(fm.data[field])) {
+          ctx.report({
+            filePath: file.absPath,
+            line: fm.startLine || 1,
+            column: 1,
+            message: `Missing recommended \`${field}\` field (${RECOMMENDED_LABELS[field]}).`,
+          });
+        }
       }
-    }
-  },
-}));
+    },
+  };
+}
 
-const tagsType: Rule = {
+export const recommendedTitle = recommendedFieldRule('title');
+export const recommendedDescription = recommendedFieldRule('description');
+export const recommendedTimestamp = recommendedFieldRule('timestamp');
+
+export const tagsType: Rule = {
   meta: {
     id: 'tags-type',
     severity: 'warning',
@@ -161,7 +159,7 @@ const tagsType: Rule = {
   },
 };
 
-const timestampFormat: Rule = {
+export const timestampFormat: Rule = {
   meta: {
     id: 'timestamp-format',
     severity: 'warning',
@@ -191,7 +189,7 @@ const timestampFormat: Rule = {
 // Structure rules
 // ---------------------------------------------------------------------------
 
-const indexFrontmatter: Rule = {
+export const indexFrontmatter: Rule = {
   meta: {
     id: 'index-frontmatter',
     severity: 'error',
@@ -215,7 +213,7 @@ const indexFrontmatter: Rule = {
   },
 };
 
-const indexVersionKey: Rule = {
+export const indexVersionKey: Rule = {
   meta: {
     id: 'index-version-key',
     severity: 'error',
@@ -240,7 +238,7 @@ const indexVersionKey: Rule = {
   },
 };
 
-const recommendedIndex: Rule = {
+export const recommendedIndex: Rule = {
   meta: {
     id: 'recommended-index',
     severity: 'warning',
@@ -260,7 +258,7 @@ const recommendedIndex: Rule = {
   },
 };
 
-const recommendedLog: Rule = {
+export const recommendedLog: Rule = {
   meta: {
     id: 'recommended-log',
     severity: 'warning',
@@ -299,7 +297,7 @@ function collectLogHeadings(content: string): LogHeading[] {
   return headings;
 }
 
-const logDateFormat: Rule = {
+export const logDateFormat: Rule = {
   meta: {
     id: 'log-date-format',
     severity: 'error',
@@ -321,7 +319,7 @@ const logDateFormat: Rule = {
   },
 };
 
-const logDateOrder: Rule = {
+export const logDateOrder: Rule = {
   meta: {
     id: 'log-date-order',
     severity: 'warning',
@@ -350,7 +348,7 @@ const logDateOrder: Rule = {
 // Link rules
 // ---------------------------------------------------------------------------
 
-const validLinks: Rule = {
+export const validLinks: Rule = {
   meta: {
     id: 'valid-links',
     severity: 'warning',
@@ -382,7 +380,7 @@ const validLinks: Rule = {
   },
 };
 
-const preferAbsoluteLinks: Rule = {
+export const preferAbsoluteLinks: Rule = {
   meta: {
     id: 'prefer-absolute-links',
     severity: 'warning',
@@ -413,7 +411,7 @@ const preferAbsoluteLinks: Rule = {
 // Version rules
 // ---------------------------------------------------------------------------
 
-const okfVersionDeclared: Rule = {
+export const okfVersionDeclared: Rule = {
   meta: {
     id: 'okf-version-declared',
     severity: 'warning',
@@ -431,7 +429,7 @@ const okfVersionDeclared: Rule = {
   },
 };
 
-const okfVersionSupported: Rule = {
+export const okfVersionSupported: Rule = {
   meta: {
     id: 'okf-version-supported',
     severity: 'warning',
@@ -450,7 +448,7 @@ const okfVersionSupported: Rule = {
   },
 };
 
-const okfVersionFormat: Rule = {
+export const okfVersionFormat: Rule = {
   meta: {
     id: 'okf-version-format',
     severity: 'warning',
@@ -480,7 +478,9 @@ export const rules: Rule[] = [
   frontmatterPresent,
   frontmatterParseable,
   typeRequired,
-  ...recommendedFieldRules,
+  recommendedTitle,
+  recommendedDescription,
+  recommendedTimestamp,
   tagsType,
   timestampFormat,
   indexFrontmatter,
